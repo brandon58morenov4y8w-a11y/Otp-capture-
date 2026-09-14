@@ -11,31 +11,58 @@ jobs:
     runs-on: ubuntu-latest
 
     steps:
+      # 1. Download repository
       - name: Checkout source
         uses: actions/checkout@v4
 
+      # 2. Install Java 17
       - name: Set up JDK 17
         uses: actions/setup-java@v4
         with:
           distribution: temurin
           java-version: "17"
 
+      # 3. Set up Gradle
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v4
 
+      # 4. Create Android project
       - name: Create Android project structure
+        shell: bash
         run: |
+          set -e
+
+          echo "Creating Android project..."
+
           mkdir -p app/src/main/java/com/example/otp_app
           mkdir -p app/src/main/res/values
 
-          if [ -f AndroidManifest.xml ]; then
+          # -----------------------------------------
+          # Move existing AndroidManifest
+          # -----------------------------------------
+          if [ -f "AndroidManifest.xml" ]; then
             mv AndroidManifest.xml app/src/main/AndroidManifest.xml
           fi
 
-          if [ -f SmsReceiver.java ]; then
+          # -----------------------------------------
+          # Move SmsReceiver.java if it exists
+          # -----------------------------------------
+          if [ -f "SmsReceiver.java" ]; then
             mv SmsReceiver.java app/src/main/java/com/example/otp_app/SmsReceiver.java
           fi
 
+          # -----------------------------------------
+          # AndroidX configuration
+          # -----------------------------------------
+          cat > gradle.properties <<'EOF'
+          android.useAndroidX=true
+          android.enableJetifier=true
+          org.gradle.jvmargs=-Xmx2048m -Dfile.encoding=UTF-8
+          EOF
+
+          # -----------------------------------------
+          # settings.gradle
+          # -----------------------------------------
           cat > settings.gradle <<'EOF'
           pluginManagement {
               repositories {
@@ -47,6 +74,7 @@ jobs:
 
           dependencyResolutionManagement {
               repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+
               repositories {
                   google()
                   mavenCentral()
@@ -54,15 +82,22 @@ jobs:
           }
 
           rootProject.name = "otp_app"
+
           include(":app")
           EOF
 
+          # -----------------------------------------
+          # Root build.gradle
+          # -----------------------------------------
           cat > build.gradle <<'EOF'
           plugins {
               id 'com.android.application' version '8.5.2' apply false
           }
           EOF
 
+          # -----------------------------------------
+          # App build.gradle
+          # -----------------------------------------
           cat > app/build.gradle <<'EOF'
           plugins {
               id 'com.android.application'
@@ -70,12 +105,15 @@ jobs:
 
           android {
               namespace 'com.example.otp_app'
-              compileSdk 35
+
+              compileSdk 34
 
               defaultConfig {
                   applicationId 'com.example.otp_app'
+
                   minSdk 21
-                  targetSdk 35
+                  targetSdk 34
+
                   versionCode 1
                   versionName '1.0'
               }
@@ -86,25 +124,62 @@ jobs:
           }
           EOF
 
+          # -----------------------------------------
+          # Create styles.xml
+          # -----------------------------------------
           cat > app/src/main/res/values/styles.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
           <resources>
-              <style name="AppTheme" parent="Theme.AppCompat.Light.DarkActionBar">
+
+              <style name="AppTheme"
+                  parent="Theme.AppCompat.Light.DarkActionBar">
+
                   <item name="android:fontFamily">sans</item>
                   <item name="android:windowActionModeOverlay">true</item>
+
               </style>
+
           </resources>
           EOF
 
-          if [ ! -f app/src/main/AndroidManifest.xml ]; then
+          # -----------------------------------------
+          # Create MainActivity if missing
+          # -----------------------------------------
+          if [ ! -f "app/src/main/java/com/example/otp_app/MainActivity.java" ]; then
+
+            cat > app/src/main/java/com/example/otp_app/MainActivity.java <<'EOF'
+          package com.example.otp_app;
+
+          import android.os.Bundle;
+          import androidx.appcompat.app.AppCompatActivity;
+
+          public class MainActivity extends AppCompatActivity {
+
+              @Override
+              protected void onCreate(Bundle savedInstanceState) {
+                  super.onCreate(savedInstanceState);
+                  setContentView(android.R.layout.simple_list_item_1);
+              }
+          }
+          EOF
+
+          fi
+
+          # -----------------------------------------
+          # Create AndroidManifest if missing
+          # -----------------------------------------
+          if [ ! -f "app/src/main/AndroidManifest.xml" ]; then
+
             cat > app/src/main/AndroidManifest.xml <<'EOF'
           <?xml version="1.0" encoding="utf-8"?>
+
           <manifest xmlns:android="http://schemas.android.com/apk/res/android">
 
               <application
-                  android:theme="@style/AppTheme"
+                  android:allowBackup="true"
                   android:label="OTP App"
-                  android:allowBackup="true">
+                  android:supportsRtl="true"
+                  android:theme="@style/AppTheme">
 
                   <activity
                       android:name=".MainActivity"
@@ -121,19 +196,29 @@ jobs:
 
           </manifest>
           EOF
+
           fi
 
-      - name: Create Gradle wrapper
+          echo "Android project created successfully."
+
+      # 5. Generate Gradle wrapper
+      - name: Generate Gradle wrapper
+        shell: bash
         run: |
           gradle wrapper --gradle-version 8.7
 
+      # 6. Build APK
       - name: Build APK
+        shell: bash
         run: |
           chmod +x gradlew
+          ./gradlew clean
           ./gradlew assembleDebug --stacktrace
 
+      # 7. Upload APK
       - name: Upload APK
         uses: actions/upload-artifact@v4
         with:
           name: otp-app-debug
           path: app/build/outputs/apk/debug/app-debug.apk
+          if-no-files-found: error
