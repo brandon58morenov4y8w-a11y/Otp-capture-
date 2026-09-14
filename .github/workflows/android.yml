@@ -1,4 +1,4 @@
-name: Android CI
+: Android CI
 
 on:
   push:
@@ -36,5 +36,3 @@ jobs:
           # গ্রেডল র‍্যাপার না থাকলে নিজে তৈরি করে বিল্ড করা
           gradle wrapper
           ./gradlew assembleDebug
-        fi
-        
