@@ -1,4 +1,4 @@
-me: Android CI
+name: Android CI
 
 on:
   push:
@@ -17,11 +17,21 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Build APK
+    - name: Prepare Project Structure and Build
       run: |
-        chmod +x gradlew || true
-        if [ -f "./gradlew" ]; then
-          ./gradlew assembleDebug
-        else
+        mkdir -p app/src/main/java/com/example/otp_app
+        [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/ || true
+        [ -f SmsReceiver.java ] && mv SmsReceiver.java app/src/main/java/com/example/otp_app/ || true
+        [ -f build.gradle ] && mv build.gradle app/ || true
+        
+        if [ ! -f "settings.gradle" ]; then
+          echo "include ':app'" > settings.gradle
+        fi
+
+        if [ ! -f "./gradlew" ]; then
           gradle wrapper
-          ./gradlew assembleDebug
+        fi
+        
+        chmod +x gradlew || true
+        ./gradlew assembleDebug
+        
