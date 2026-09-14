@@ -1,4 +1,4 @@
-name: Android CI
+me: Android CI
 
 on:
   push:
@@ -25,5 +25,3 @@ jobs:
         else
           gradle wrapper
           ./gradlew assembleDebug
-        fi
-        
