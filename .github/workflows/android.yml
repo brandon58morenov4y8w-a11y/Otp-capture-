@@ -17,21 +17,49 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Prepare Project Structure and Build
+    - name: Create Complete Android Project Structure
       run: |
         mkdir -p app/src/main/java/com/example/otp_app
+        
         [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/ || true
         [ -f SmsReceiver.java ] && mv SmsReceiver.java app/src/main/java/com/example/otp_app/ || true
-        [ -f build.gradle ] && mv build.gradle app/ || true
         
-        if [ ! -f "settings.gradle" ]; then
-          echo "include ':app'" > settings.gradle
+        # রুট লেভেলে সঠিক build.gradle তৈরি করা যদি না থাকে
+        if [ ! -f "build.gradle" ]; then
+          echo "allprojects { repositories { google(); mavenCentral() } }" > build.gradle
         fi
 
-        if [ ! -f "./gradlew" ]; then
-          gradle wrapper
+        # app ফোল্ডারের ভেতরে build.gradle তৈরি বা নিশ্চিত করা
+        mkdir -p app
+        if [ -f "app/build.gradle" ]; then
+          echo "app/build.gradle exists"
+        else
+          cat << 'EOF' > app/build.gradle
+plugins {
+    id 'com.android.application'
+}
+android {
+    namespace 'com.example.otp_app'
+    compileSdk 34
+    defaultConfig {
+        applicationId "com.example.otp_app"
+        minSdk 21
+        targetSdk 34
+        versionCode 1
+        versionName "1.0"
+    }
+}
+dependencies {
+    implementation 'androidx.appcompat:appcompat:1.6.1'
+}
+EOF
         fi
-        
-        chmod +x gradlew || true
+
+        # settings.gradle নিশ্চিত করা
+        echo "include ':app'" > settings.gradle
+
+        # গ্রেডল র‍্যাপার তৈরি করে বিল্ড রান করা
+        gradle wrapper
+        chmod +x gradlew
         ./gradlew assembleDebug
         
