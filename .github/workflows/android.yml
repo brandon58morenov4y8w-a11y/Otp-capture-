@@ -1,4 +1,4 @@
-: Android CI
+name: Android CI
 
 on:
   push:
@@ -17,22 +17,13 @@ jobs:
         distribution: 'temurin'
         java-version: '17'
 
-    - name: Build with Gradle
+    - name: Build APK
       run: |
-        mkdir -p app/src/main/java/com/example/otp_app
-        mkdir -p app/src/main
-        
-        # যদি ফাইলগুলো রুট ডিরেক্টরিতে থাকে তবে সেগুলোকে সঠিক ফোল্ডারে সরিয়ে নেওয়া
-        [ -f AndroidManifest.xml ] && mv AndroidManifest.xml app/src/main/
-        [ -f SmsReceiver.java ] && mv SmsReceiver.java app/src/main/java/com/example/otp_app/
-        [ -f build.gradle ] && mv build.gradle app/
-        [ -f settings.gradle ] && echo "settings.gradle exists" || echo "include ':app'" > settings.gradle
-        
-        # বিল্ড কমান্ড চালানো
+        chmod +x gradlew || true
         if [ -f "./gradlew" ]; then
-          chmod +x gradlew
           ./gradlew assembleDebug
         else
-          # গ্রেডল র‍্যাপার না থাকলে নিজে তৈরি করে বিল্ড করা
           gradle wrapper
           ./gradlew assembleDebug
+        fi
+        
